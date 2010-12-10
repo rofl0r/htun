@@ -1,0 +1,75 @@
+Here are some frequently asked questions that we get. Please do not repeat
+them to us, as God knows we're hellishly busy every second of the day!
+
+-------------------------------------------------------------------------------
+
+Q: Will there ever be a client for [insert platform here] ?
+
+A: (Short): Probably for Solaris and FreeBSD, but not for Windows or OS/X.
+
+A: (Long): Currently, HTun uses the functionality of the Universal TUN/TAP
+   driver (provided in the Linux kernel as tun.o) to do the dirty work of
+   bringing up and communicating over a network interface. This is what
+   enables HTun to be a completely user-space daemon. 
+
+   The TUN/TAP driver (http://vtun.sourceforge.net/tun/index.html) is
+   currently available only for Solaris, FreeBSD, and Linux. Therefore, these
+   platforms would, without question, be the easiest to port to. So there is a
+   chance that we will release Solaris and FreeBSD clients some day. If you
+   wish to help port HTun, we will be more than happy to have you help us with
+   that. We will provide you with all the support necessary.
+
+   However, if you are asking about Windows or Mac OS/X, the likelihood is
+   that it will not be ported unless some wizard Windows programmer would like
+   to help us. This is because we know nothing about Windows programming. If
+   you are interested in doing the port, you will have to duplicate the
+   functionality of the TUN/TAP driver in Windows, or else modify the program
+   just to bring up its own network interface and talk to it directly, instead
+   of relying on the TUN/TAP driver.
+
+-------------------------------------------------------------------------------
+
+Q: My connection negotiates fine, but then I can't communicate afterwards!
+
+A1:Is your proxy server on the same subnet as your client? I.e., does the
+   client need to route (rather than simply broadcast) to get to the proxy
+   server? If so, you will need to set up a static -host route to it before
+   you start HTun, because HTun is trying to route to the proxy through the
+   TUN interface, which is just plain stupid.
+
+   To set up the route, assume your proxy ip is ppp.ppp.ppp.ppp and your
+   router IP is rrr.rrr.rrr.rrr. Assuming you use device eth0 to get to the
+   router, you'd do:
+
+    $ route add -host ppp.ppp.ppp.ppp gw rrr.rrr.rrr.rrr dev eth0
+
+   Then it should all work.
+
+A2:If you are traversing a proxy server, please ensure that it supports
+   keep-alive (persistent connections to the webserver).  If it does not, HTun
+   will not work. We would like to assemble a list of proxies that do and do
+   not support keepalive, so please let us know if yours does or not. 
+ 
+-------------------------------------------------------------------------------
+
+Q: I think I've found a bug, or a problem I can't figure out!
+
+A: Before reporting it, please re-read the README to make sure you didn't miss
+   something important. Then recompile the server and client with "make
+   debug". When you make the report, invoke htun server and client with the -d
+   flag, to cause debug output to be logged as well. This way, we will get
+   extra information about what's going on that we would not have been able to
+   see otherwise.
+
+   Then do the simplest progression of steps possible to reproduce the
+   problem. Email the logs and the steps to us and sit back and wait.
+
+-------------------------------------------------------------------------------
+
+Q: How does all this really work?
+
+A: If you really want to know the nitty-gritty of the protocol and
+   implementation details, I highly recommend reading the research paper Ola
+   and I wrote, at http://htun.runslinux.net/docs/htun-paper.pdf.
+
+-------------------------------------------------------------------------------

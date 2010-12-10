@@ -1,0 +1,76 @@
+To report a bug, please fill out the following data and email it to us. I know
+it's a little demanding, but without this information, it is nearly impossible
+to decipher what is going on:
+
+1. Please describe the problem in a couple sentences:
+
+2. If possible, describe the simplest set of steps necessary to reproduce the
+   problem. Please also mention whether the problem occurs with both protocols
+   1 and 2. 
+
+3. Prepare to reproduce the problem:
+    - Compile the server and the client in debug mode: "make debug"
+    - Ensure you have tcpdump available on your client and server machines
+    - Clear out htun logfiles on the client and the server so the created
+      logfiles will be no larger than necessary to show the problem.
+    - Turn do_routing to off in the client.
+    
+4. Please list the following data:
+    - Real (could be internal) IP address of computer running HTun client
+    - Proxy server's IP address (i.e., IP address to which the client connects
+      to access the proxy server
+    - Real IP address of host running the HTun server
+    - What type of proxy server are you using? (Please list brand and name of
+      software if it is a software proxy, or brand and model if it is an
+      Internet appliance machine)
+
+5. Plesae list the contents of the server's htund.conf:
+
+6. Plesae list the contents of the client's htund.conf:
+
+7. Start the HTun server
+    - Invoke with the "-d" flag to turn on debug mode
+    - Ensure that the output is being logged to the logfile
+
+8. Get tcpdump going on the server:
+    - Find out the name of the external Ethernet interface on your server
+      machine (likely "eth0"). We will assume eth0 for the example below.
+    - Find out what ports the HTun server has been configured to listen on
+      (values in the config are server_port and secondary_server_port). We
+      will assume 80 and 8080 for the example below.
+    - Invoke tcpdump with the output redirected to a file:
+      $ tcpdump -i eth0 -n -s 0 -l -x -X port 80 or port 8080 > /tmp/srv.tcpdump
+
+9. Start tcpdump on the client:
+    - Find out the name of the external Ethernet interface on your client
+      machine (likely "eth0"). We will assume eth0 for the example below.
+    - Find out the port on which the proxy server is accepting the client's
+      commands (value in the config is proxy_port). We will assume 8080 for
+      the example below.
+    - Invoke tcpdump with the output redirected to a file:
+      $ tcpdump -i eth0 -n -s 0 -l -x -X port 8080 > /tmp/cli.tcpdump
+
+10. Start the HTun client
+    - Invoke with the "-d -r" flags to turn on debug mode and routing
+    - Ensure that the output is being logged to the logfile
+
+11. Do the simplest possible action to reproduce the problem (i.e. a ping -c1
+    from the client to the server VPN IP address is good)
+
+12. Shut down the client with Ctrl+C if it's running in the foreground, or
+    kill -15 if in the background, and wait for it to exit. If it does not
+    exit cleanly, kill -9 it.
+
+13. Stop tcpdump on the client
+
+14. Stop tcpdump on the server
+
+15. Shut down the server with Ctrl+C if it's running in the foreground, or
+    kill -15 if in the background. If it does not exit cleanly, kill -9 it.
+
+16. Email this list of questions filled out, to htun@runslinux.net, with the
+    following attachments:
+    - The server's HTun logfile
+    - The client's HTun logfile
+    - The server's tcpdump output
+    - The client's tcpdump output

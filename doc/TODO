@@ -1,0 +1,11 @@
+To do list for future releases of HTun:
+
+- Instead of resolving server hostname on startup, allow it to be resolved by
+  proxy
+- Make receive channel wait time a config option
+- Add encrypted communication support (?)
+- Automatically set up static route to proxy server
+- Add IP-based access restrictions
+- Add password-based access restrictions ?
+- Make client more responsive to kill signals
+

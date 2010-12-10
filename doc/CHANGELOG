@@ -1,0 +1,47 @@
+* 0.9.5
+    - Maximum length for proxy auth username length increased.
+    - Now allow '/' in proxy auth username for authentication again SMB.
+    - New config directives to control client retries and timings.
+    - Client now behaves better when the server responds with an error code.
+
+* 0.9.4
+    - Fixed faulty proto2 server behavior in event that client doesn't make a
+      request in the allotted amount of time. Thanks to Adam Kramer.
+    - Improved the logging.
+
+* 0.9.3b
+    - Added Content-Length header to 204 responses, as some proxies stalled
+      waiting for it.
+
+* 0.9.3a
+    - Stupid oversight with the HTTP/1.1 problem that I won't admit to :)
+
+* 0.9.3
+    - Discovered that HTTP/1.1 responses problem supposedly fixed in last
+      0.9.2 wasn't actually fixed. Fixed it again :-\
+    - In server config, port is an alias for server_port, and secondary_port
+      is an alias for secondary_server_port
+    - Config parsing errors have been improved significantly.
+    - Any IP address value in the config file may now be a domain name. HTun
+      will resolve the name on startup.
+
+* 0.9.2
+    - Default of 20 sec for idle_disconnect in server options changed to 1800,
+      as 20 was causing spurious disconnects of the client.
+    - Config value min_poll_interval_usec changed to msec. Value is still in
+      msec as it used to be before.
+    - Added redirect_host and redirect_port options to server config.
+    - Lots of aesthetic and code cleanup
+    - Removed some values that were never used in the config. Recommend
+      restarting from example config in doc/, which was also updated.
+    - Fixed problem with recognizing certain HTTP/1.1 responses when expecting
+      HTTP/1.0. Seems to happen with MS Proxy Server
+
+* 0.9.1
+    - Added ability to authenticate with proxy using username/password
+    - Fixed a problem with parsing comments correctly in config file
+    - HTun now comes with a better example config file
+
+* 0.9.0
+    - Initial Release
+    

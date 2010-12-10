@@ -1,0 +1,355 @@
+HTun: IP-over-HTTP tunnelling VPN network interface
+---------------------------------------------------
+
+ABOUT
+-----
+HTun is a tool to allow you to create a fully bidirectional IP VPN over an
+HTTP proxy or just over port 80, allowing you to bypass restrictive firewalls
+and use any service you desire.
+
+HTun creates an point-to-point virtual IP network over HTTP by encapsulating
+IP traffic into valid HTTP requests. The HTun server runs on a host with an
+unrestricted Internet connection. It listens on a common webserver port (80 or
+443) and accepts HTun client connections. The HTun client daemon runs from
+within a restrictive network environment, communicating with the HTun server
+over an HTTP proxy.
+
+Written by:
+Moshe Jacobson <moshe at runslinux dot net> and 
+Ola Nordström <ola at triblock dot com> under 
+Russell Clark <rjc at cc dot gatech dot edu>.
+
+
+COMPILING
+---------
+Compiling HTun should be fairly straightforward:
+
+cd src
+make all
+cp htund /usr/local/bin
+cp ../doc/htund.conf /etc
+
+To compile with debug support, type "make debug" instead of "make all".
+
+Debug support slows down the program, but provides the ability to log debug
+statements to the logfile through use of the -d commandline option or the
+"debug yes" config file option. You should use debug mode if you're trying to
+report a bug.
+
+
+CONFIGURING THE TUN DEVICE
+--------------------------
+HTun uses the Unversal TUN/TAP module (tun.o) available in the Linux kernel.
+Therefore, you must enable the option in the kernel configuration under
+"Network Device Support" --> "Universal TUN/TAP device driver support".  
+It is recommended that you compile it as a module rather than statically.
+
+You must also create the TUN device file. You may call it whatever you want,
+but for this example, we will assume you are creating it as /dev/net/tun. Use
+the mknod command as follows to create the device with major number 10 and
+minor number 200:
+
+    $ mknod /dev/net/tun c 10 200
+
+Additionally, to cause the device driver to be automatically loaded on
+request, you must place the following line into your /etc/modules.conf:
+
+   alias char-major-10-200 tun 
+
+Once you have made that modification, run depmod -a to reconfigure the module
+dependencies.
+
+
+CONFIGURING
+-----------
+All HTun options can be set from the configuration file. The config file has
+the following format:
+
+options {
+    universal options
+}
+[client|server] {
+    client- or server-specific options
+}
+
+The valid options are as follows. The required options are marked with an
+asterisk (*), and next to each option, the default value, if any, is shown in
+brackets.
+
+universal options:
+    logfile {filename}              [logging turned off]
+        This is the logfile to which HTun writes errors and information. It is
+        highly suggested that you enable a logfile so that in case of an
+        error, you may determine the cause.
+  * tunfile {filename}              []
+        This is the name of the tun device file you created earlier (see the
+        CONFIGURING THE TUN DEVICE section).
+    debug [yes|no]                  [no]
+        This tells HTun whether or not to log debug information into its
+        logfile. This is only useful for extreme debugging circumstances, and
+        produces a lot of output. However, it may help someone out there :)
+
+client options:
+    do_routing [yes|no]             [no]
+        When do_routing is set to yes, HTun modifies your route table so that
+        your default gateway becomes the HTun server, and all Internet-bound
+        data is automatically sent through the HTun interface. The route
+        tables are automatically restored when HTun is killed cleanly.
+        This is usually desirable, as it works well in most circumstances.
+  * protocol [1|2]                  []
+        This option is a bit strange, but it is here due to the fact that HTun
+        came about as a research project. We developed two protocols, one
+        half-duplex (protocol 1) and one full-duplex (protocol 2). 
+        The half-duplex protocol can achieve better response times, but is
+        more erratic, especially inbound. The full-duplex protocol is *very*
+        consistent with response times, but they are a bit higher, generally.
+        My suggestion is: start with protocol 2 (make sure you set
+        secondary_server_port as well, in this case). If it doesn't work, then
+        go back to protocol 1.
+  * proxy_ip [dotted.ip.address | hostname]    []
+        This is the IP address or hostname of your web proxy server through
+        which you are tunneling. It must be on your local subnet. If not, you
+        must manually add a static host route entry in your routing table so
+        that you may route to it without going through the HTun interface.  If
+        you are not using a web proxy server, and only wish to tunnel over
+        HTTP on port 80 (communicating directly with the server), place the
+        server's IP address here.
+  * proxy_port [port]               []
+        This is the port on which your proxy server listens for requests. For
+        the squid proxy server, this is usually 3128. For many other proxy
+        servers, it can be 8000. Ask your system administrator for a more
+        definitive answer.
+    proxy_user [username]
+        This is the username by which you wish to authenticate yourself on the
+        proxy server. This is only necessary if your proxy server requires
+        authentication. If it does not, you should not insert this line into
+        the config file, as it creates extra HTTP overhead to support it.
+    proxy_pass [password]
+        This is the password for the user given in proxy_user, by which you
+        wish to authenticate yourself on the proxy server. Although it may be
+        true that this password contains a space, HTun does not support
+        passwords with whitespace in them. If you do have whitespace in your
+        password, you will need to change the password to be able to use it
+        with HTun. This option is only necessary if your proxy server requires
+        authentication.  If it does not, you should not insert this line into
+        the config file, as it creates extra HTTP overhead to support it.
+  * server_ip [dotted.ip.address | hostname]   []
+        This is the real IP address or hostname of the HTun server machine.
+        This is the address sent to the proxy in all requests, so the proxy
+        must be able to access it.
+  * server_port [port]              []
+        This is the port on which the HTun server daemon is listening.
+        Usually, the server will be listening on port 80, 8080, or 8000, as
+        the goal is to have the HTun server seem like a webserver.
+  * secondary_server_port [port]    []
+        This is only required if you are using protocol 2. Because the
+        protocol is full duplex, the HTun client must open two channels to
+        different ports on the server (If it attempts to open two connections
+        to the same port, many proxy servers will interleave the requests into
+        one connection, rendering the connection useless). Usually, the
+        secondary port will be something like 8080 or 8000, depending on what
+        the proxy server allows access to.
+  * if_name [network device name]   []
+        Because the client must have a unique identifier to give to the
+        server, it uses the MAC address of a physical Ethernet interface,
+        whose name you must provide here. eth0 usually works.
+  * iprange [network/maskbits]      []
+        This tells the HTun client what IP addresses it may choose from when
+        picking an address for its virtual point-to-point interface. You must
+        provide a range of IP addresses so that the server can negotiate an
+        address that it is not using either. For example, if you are not using
+        the 10.*.*.* network, you should place 10.0.0.0/8 as your iprange. If
+        you're not using 192.168.*.*, you should place 192.168.0.0/16 there.
+        You may also have more than one iprange statement, for maximum
+        flexibility.
+
+  The following options are only for those who wish to tinker, and need not be
+  touched otherwise. However, the ones marked with a * must be present in the
+  config file anyway:
+
+  * max_poll_interval [seconds]     []
+        Only used with protocol 1. Protocol 1 involves regular polling of the
+        server to determine if the server as any data to return to the client.
+        Polling becomes less and less frequent as more and more time passes
+        without sending or receiving data. To place an upper bound on the
+        number of seconds between polls to the server, set max_poll_interval.
+        30 seconds is a reasonable value here.
+  * min_poll_interval_msec [msec]
+        Only used with Protocol 1. This is the number of milliseconds that the
+        client should wait before the first poll to the server. A lower value
+        here will lead to lower latency, but more overhead. Experiment to see
+        what you think is best. I suggest 200 as a starting point.
+  * poll_backoff_rate [integer]
+        Only used with protocol 1. This indicates the number of times that
+        protocol 1 should poll at each time interval, thus determining how
+        fast it backs off in terms of poll frequency. Higher numbers here
+        cause a slower backoff, but much more overhead in general. values from
+        1 to 3 are reasonable.
+  * ack_wait [seconds]
+        Only used with protocol 2. Protocol 2 uses two channels, one for
+        sending data, and the other for receiving. The receive channel simply
+        makes POST requests and waits for responses containing IP packets.
+        However, it won't wait for data forever, because perhaps there was a
+        problem that it didn't know about. Therefore, it is best that the
+        client make a new poll request on the receive channel every ack_wait
+        seconds. 
+  * connect_tries 2
+        The client will try the initial connection to the server this many
+        times before giving up.
+  * reconnect_tries 4
+        In the event of a disconnection from the server, the client will try
+        reconnecting to the server this many times before giving up.
+  * reconnect_sleep_sec 30
+        How many seconds the client should wait between reconnect retries.
+  * channel_2_idle_allow 30
+        The maximum number of seconds we'll allow the server to sit idle 
+        before responding to the client request, in proto 2 channel 2.
+        Setting this higher cuts down on unnecessary chatter over the network,
+        but your proxy may time out waiting for the server to respond if you
+        set it too high. Experiment to see what your proxy will allow for.
+
+
+Server Options (all are mandatory):
+    max_clients [integer]
+        Maximum number of clients that may be connected to the server at any
+        given time.
+    server_port [port]
+    secondary_server_port [port]
+        The server must listen on two ports for protocol 2 to operate. Set
+        these two options to different values. Suggested ports to choose from
+        are 80, 8000, and 8080.
+    iprange [network/maskbits]
+        This tells the HTun server what IP addresses it may choose from when
+        picking an address for its virtual point-to-point interface. You must
+        provide a range of IP addresses so that the client can negotiate an
+        address that it is not using either. For example, if you are not using
+        the 10.*.*.* network, you should place 10.0.0.0/8 as your iprange. If
+        you're not using 192.168.*.*, you should place 192.168.0.0/16 there.
+        You may also have more than one iprange statement, for maximum
+        flexibility.
+    redirect_host [hostname]
+    redirect_port [port]
+        These two directives together tell HTun where to redirect non-HTun
+        requests received by the HTun server.  The idea is that HTun will be 
+        pretending to be a webserver, so if someone wants to find out what all
+        this proxy traffic is all about, they will visit the HTun server with
+        their web browser, and HTun will invisibly redirect their request to a
+        legitimate web server, and proxy the response back to them, so they
+        are led to believe that the HTun server is a legitimate webserver.
+        The redirect_host would be something of the form "www.microsoft.com".
+        The port is the port on which the remote webserver is running
+        (usually, this would be port 80)
+
+    The following options are for expert users only. You need not mess with
+    them:
+
+    min_nack_delay
+    clidata_timeout [seconds]
+        If a client does not close the communication channel cleanly, its
+        state data will be removed from the server after clidata_timeout
+        seconds. This should generally be set high enough that if the client
+        disconnects from a network timeout or something, that it will be able
+        to reconnect soon enough that its data will be maintained, and it can
+        pick up its dropped session without losing data or changing its IP
+        address.
+    max_pending [integer]
+        Masimum number of pending clients that may be connected. These are
+        clients that aren't being serviced but are connected. I think. Just
+        leave it at some value like 40 and forget about it :)
+    idle_disconnect [seconds]
+        If a client connects but sends no request for idle_disconnect seconds,
+        it is disconnected by the server. This is only mandatory because we
+        haven't gotten around to making htun assign a default. 1800 seconds is
+        a good value to use here.
+    min_nack_delay [msec]
+        Protocol 1 only. The server will wait at least this many msec before
+        replying to the client POST requests. This causes server response data
+        to be more likely to be included in the immediate response from the
+        server to the client, causing lower response times. Set this too high
+        or too low and your response times will rise on average.
+    packet_count_threshold [integer]
+        Proto 1 only. If there are at least packet_count_threshold packets
+        queued to send to the client, the server will respond to the client
+        immediately. In Linux, the limit to the number of TCP packets that can
+        be sent without an ACK response is (I believe) about 6 or 7, so any
+        value above that will have no effect on TCP applications.
+    packet_max_interval [msec]
+        Proto 1 only. If there have been no packets queued to send to the
+        client in packet_max_interval msec, the server will send the response
+        to the client immediately.
+
+Once you have finished writing your configuration file, move it to
+/etc/htund.conf. If you wish to place it elsewhere, you will have to use the
+-c option on the htun commandline.
+
+
+INVOKING
+--------
+The HTun daemon must be initalized as the server on the machine with an
+unrestricted Internet connection, and as a client on the machines with
+restricted connections. The mode is set in the config file, not on the
+commandline. The simplest invocation of htund is without any parameters at
+all:
+
+    $ htund
+    HTun daemon backgrounding . . .
+    $
+
+But you may see all the commandline options available with htund -h:
+
+    $ htund -h
+      Htun 0.1
+      Usage: htund [OPTION]...
+      Options:
+         -c cfgfile   Use cfgfile as the config file.
+         -f           Run htund in the foreground.
+         -v           Print the htund version information and exit.
+         -h           Print usage information and exit.
+         -t tunfile   Use tunfile as the tun device file.
+         -l logfile   Use logfile as the log output file.
+                       Give - for stdout; this implies -f.
+         -r           Do not alter default route.
+         -p port      Set server port to given value
+         -o           cOnfigtest only, check config syntax
+
+All commandline options specified override the corresponding options in the
+configuration file, if any.
+
+
+USING
+-----
+Once the client and server have both been invoked, and are communicating
+properly (see the log file for details), you should be able to see what IP
+address you have been assigned and what address the server is using by typing
+ifconfig at the commandline. Look for the tun0 interface, and that should
+contain the IP addresses.
+
+Sending a SIGUSR1 kill signal to the server will generate some interesting
+statistics, such as information on the connected clients, to the logfile.
+
+Sending a SIGHUP kill signal to the htund will cause it to reload its
+configuration file and put the new changes into effect. For the client side,
+this may mean reconnecting to the server. For the server side, the currently
+connected clients may not see the changes until they reconnect.
+
+Provided you have told htun to set up the default route ("do_routing yes" in
+the config file), you should not have to worry about the IP addresses of the
+virtual interface, though. You should just be able to begin using it.
+
+You will also want to set up IP masquerading on the server side so that
+traffic from the TUN interface will be routed properly. Otherwise, you will be
+able to communicate only with the HTun server machine. Instructions on setting
+up IP masquerading are beyond the scope of this document, and can be found at
+documentation sites such as http://www.linuxdoc.org.
+
+
+SUGGESTIONS
+-----------
+I welcome any suggestions, bug reports, etc. that you may have about HTun.
+Just go to http://htun.runslinux.net/contact.html and submit them to us.
+
+
+OBTAINING
+---------
+The latest version of HTun is always available at http://htun.runslinux.net
+
